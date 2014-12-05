@@ -4,7 +4,7 @@
 class skytap_metadata {
     file { 'skytap_metadata.py':
         ensure => file,
-        path   => '/etc/puppetlabs/facter/facts.d/skytap_metadata.py'
+        path   => '/etc/puppetlabs/facter/facts.d/skytap_metadata.py',
         owner  => 'root',
         group  => 'root',
         mode   => '0755',
