@@ -94,7 +94,8 @@ json.dump(data, metafile)
 vmid = data["skytap_vmid"]
 
 if os.path.exists(vm_history_log):
-    history = json.load(vm_history_log)
+    with open(vm_history_log) as data_file:    
+        history = json.load(data_file)
 else:
     history = []
 
