@@ -84,3 +84,10 @@ del data["skytap_desktop_resizable"]
 metapath = '/etc/puppetlabs/facter/facts.d/skytap.json'
 metafile = open(metapath, 'w+')
 json.dump(data, metafile)
+
+# Add a history of machine ids to a file. This number will change if
+# the machine ID changes - that is, if the machine was copied as a
+# template or similar.
+
+vmid = data["skytap_vmid"]
+print vmid
