@@ -19,6 +19,8 @@ import socket
 import shutil
 import os.path
 
+vm_history_log = "/var/log/skytap-history.log"
+
 try:
     import requests
 except ImportError:
@@ -90,4 +92,20 @@ json.dump(data, metafile)
 # template or similar.
 
 vmid = data["skytap_vmid"]
-print vmid
+
+if os.path.exists(vm_history_log):
+    history = json.load(vm_history_log)
+else:
+    history = []
+
+good = False
+
+for vms in history:
+    print vms
+    if vms == vmid:
+        good = True
+
+if not good:
+    history.append(vmid)
+
+print history
