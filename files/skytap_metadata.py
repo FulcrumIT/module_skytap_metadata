@@ -83,22 +83,40 @@ vpn_nat_addresses = data["skytap_interfaces"][0]["skytap_nat_addresses"]["skytap
 for a in vpn_nat_addresses:
     data["skytap_nat_ip_" + a["skytap_vpn_id"]] = a["skytap_ip_address"]
 
+data["skytap_env_user_data"] = data["skytap_configuration_user_data"]
+data["skytap_vm_user_data"] = data["skytap_user_data"]
 
-def is_valid_yaml(yamlObj):
+
+def is_valid_yaml(yamlObj, type):
     """Return true if passed parameter is in valid YAML format."""
     try:
         yaml.load(yamlObj)
-    except:
+    except yaml.scanner.ScannerError, e:
+        data["skytap_" + type + "_user_data_status"] = "error"
+        data["skytap_" + type + "_user_data_status"] = e
         return False
     return True
 
 
-if is_valid_yaml(data["skytap_user_data"]):
-    yamlUserData = yaml.load(data["skytap_user_data"])
-    for n in yamlUserData:
-        data["skytap_user_data_" + n] = yamlUserData[n]
+def make_user_data(type):
+    """Create user data facts for vm or environment."""
+    data["skytap_" + type + "_user_data_status"] = "good"
+    if is_valid_yaml(data["skytap_" + type + "_user_data"], type):
+        if len(data["skytap_" + type + "_user_data"]) == 0:
+            data["skytap_" + type + "_user_data_status"] = "empty"
+        else:
+            yamlUserData = yaml.load(data["skytap_" + type + "_user_data"])
+            for n in yamlUserData:
+                data["skytap_" + type + "_user_data_" + n] = yamlUserData[n]
+
+
+make_user_data("vm")
+make_user_data("env")
 
 del data["skytap_user_data"]
+del data["skytap_configuration_user_data"]
+del data["skytap_vm_user_data"]
+del data["skytap_env_user_data"]
 del data["skytap_interfaces"]
 del data["skytap_hardware"]
 del data["skytap_credentials"]
