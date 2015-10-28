@@ -5,19 +5,19 @@
 # so facter can read it into facts for puppet
 #
 # Tasks:
-#   Get the default gateway
-#   Collect JSON from http://<gateway>/skytap
-#   Parse configuration id from "configuration_url"
-#	Change all keys to "skytap_XXX"
-#	discard hardware and interfaces blocks
-#	return json into file: skytap.json
+# Get the default gateway
+# Collect JSON from http://<gateway>/skytap
+# Parse configuration id from "configuration_url"
+# Change all keys to "skytap_XXX"
+# discard hardware and interfaces blocks
+# return json into file: skytap.json
 
 import json
 import sys
 import os
 import socket
-import shutil
 import os.path
+import yaml
 
 vm_history_log = "/var/log/skytap-history.log"
 
@@ -25,8 +25,8 @@ try:
     import requests
 except ImportError:
     sys.stderr.write("You do not have the 'requests' module installed. "
-        "Please see http://docs.python-requests.org/en/latest/ "
-        "for more information.")
+                     "Please see http://docs.python-requests.org/en/latest/ "
+                     "for more information.")
     exit(1)
 
 # Get the default gateway
@@ -50,16 +50,17 @@ json_data = requests.get(url)
 
 if json_data.status_code != 200:
     sys.stderr.write("Error received by JSON request. "
-        "Status code: " + json_data.status_code)
+                     "Status code: " + json_data.status_code)
     exit(1)
 
 if json_data.headers['content-type'] != 'application/json':
     sys.stderr.write("Returned text from server isn't a JSON. "
-        "Content-type: " + json_data.headers['content-type'])
+                     "Content-type: " + json_data.headers['content-type'])
     exit(1)
 
 
 def add_skytap(obj):
+    """Change all keys to skytap_xxx."""
     for key in obj.keys():
         if key[:7] != "skytap_":
             new_key = "skytap_" + key
@@ -77,15 +78,35 @@ del data["skytap_id"]
 
 data["skytap_hardware_uuid"] = data["skytap_hardware"]["skytap_uuid"]
 
+vpn_nat_addresses = data["skytap_interfaces"][0]["skytap_nat_addresses"]["skytap_vpn_nat_addresses"]
+
+for a in vpn_nat_addresses:
+    data["skytap_nat_ip_" + a["skytap_vpn_id"]] = a["skytap_ip_address"]
+
+
+def is_valid_yaml(yamlObj):
+    """Return true if passed parameter is in valid YAML format."""
+    try:
+        yaml.load(yamlObj)
+    except:
+        return False
+    return True
+
+
+if is_valid_yaml(data["skytap_user_data"]):
+    yamlUserData = yaml.load(data["skytap_user_data"])
+    for n in yamlUserData:
+        data["skytap_user_data_" + n] = yamlUserData[n]
+
+del data["skytap_user_data"]
 del data["skytap_interfaces"]
 del data["skytap_hardware"]
 del data["skytap_credentials"]
 del data["skytap_local_mouse_cursor"]
 del data["skytap_desktop_resizable"]
 
-metapath = '/etc/puppetlabs/facter/facts.d/skytap.json'
-metafile = open(metapath, 'w+')
-json.dump(data, metafile)
+for k in data:
+    print "%s=%s" % (k, data[k])
 
 # Add a history of machine ids to a file. This number will change if
 # the machine ID changes - that is, if the machine was copied as a
@@ -96,6 +117,7 @@ vmid = data["skytap_vmid"]
 if os.path.exists(vm_history_log):
     with open(vm_history_log) as data_file:
         history = json.load(data_file)
+        print "vm_history=" + json.dumps(history)
 else:
     history = []
 
