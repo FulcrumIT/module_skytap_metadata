@@ -83,6 +83,7 @@ vpn_nat_addresses = data["skytap_interfaces"][0]["skytap_nat_addresses"]["skytap
 for a in vpn_nat_addresses:
     data["skytap_nat_ip_" + a["skytap_vpn_id"]] = a["skytap_ip_address"]
 
+# Renaming for easier readability in facter output
 data["skytap_env_user_data"] = data["skytap_configuration_user_data"]
 data["skytap_vm_user_data"] = data["skytap_user_data"]
 
