@@ -92,7 +92,7 @@ def is_valid_yaml(yamlObj, type):
     """Return true if passed parameter is in valid YAML format."""
     try:
         yaml.load(yamlObj)
-    except yaml.scanner.ScannerError, e:
+    except (yaml.scanner.ScannerError, AttributeError), e:
         data["skytap_" + type + "_user_data_status"] = "error"
         data["skytap_" + type + "_user_data_status"] = e
         return False
