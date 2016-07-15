@@ -19,8 +19,6 @@ import socket
 import os.path
 import yaml
 
-vm_history_log = "/var/log/skytap-history.log"
-
 try:
     import requests
 except ImportError:
@@ -29,21 +27,9 @@ except ImportError:
                      "for more information.")
     exit(1)
 
-# Get the default gateway
-
-file = os.popen("/sbin/ip route | awk '/default/ {print $3}'")
-gateway = file.read().strip()
-file.close()
-
-# Quick test to see if the gateway actually looks like an IP address
-try:
-    socket.inet_aton(gateway)
-except socket.error:
-    sys.stderr.write("Could not determine the gateway.")
-    exit(1)
-
 # Collect JSON from http://<gateway>/skytap
 
+gateway = "169.254.169.254"
 url = 'http://' + gateway + '/skytap'
 
 json_data = requests.get(url)
@@ -84,8 +70,17 @@ for a in vpn_nat_addresses:
     data["skytap_nat_ip_" + a["skytap_vpn_id"]] = a["skytap_ip_address"]
 
 # Renaming for easier readability in facter output
-data["skytap_env_user_data"] = data["skytap_configuration_user_data"]
-data["skytap_vm_user_data"] = data["skytap_user_data"]
+try:
+    data["skytap_metadata"] = data["skytap_configuration_user_data"].replace("-", "\"-\"")
+except AttributeError:
+    # There is no metadata
+    data["skytap_metadata"] = data["skytap_configuration_user_data"]
+
+try:
+    data["skytap_userdata"] = data["skytap_user_data"].replace("-", "\"-\"")
+except AttributeError:
+    # There is no userdata
+    data["skytap_userdata"] = data["skytap_user_data"]
 
 
 def is_valid_yaml(yamlObj, type):
@@ -93,31 +88,31 @@ def is_valid_yaml(yamlObj, type):
     try:
         yaml.load(yamlObj)
     except (yaml.scanner.ScannerError, AttributeError), e:
-        data["skytap_" + type + "_user_data_status"] = "error"
-        data["skytap_" + type + "_user_data_status"] = e
+        data["skytap_" + type + "_status"] = "error"
+        data["skytap_" + type + "_status"] = e
         return False
     return True
 
 
-def make_user_data(type):
-    """Create user data facts for vm or environment."""
-    data["skytap_" + type + "_user_data_status"] = "good"
-    if is_valid_yaml(data["skytap_" + type + "_user_data"], type):
-        if len(data["skytap_" + type + "_user_data"]) == 0:
-            data["skytap_" + type + "_user_data_status"] = "empty"
+def make_data(type):
+    """Create data facts for vm/env."""
+    data["skytap_" + type + "_status"] = "good"
+    if is_valid_yaml(data["skytap_" + type], type):
+        if len(data["skytap_" + type]) == 0:
+            data["skytap_" + type + "_status"] = "empty"
         else:
-            yamlUserData = yaml.load(data["skytap_" + type + "_user_data"])
+            yamlUserData = yaml.load(data["skytap_" + type])
             for n in yamlUserData:
-                data["skytap_" + type + "_user_data_" + n] = yamlUserData[n]
+                data["skytap_" + type + "_" + n] = yamlUserData[n]
 
 
-make_user_data("vm")
-make_user_data("env")
+make_data("metadata")
+make_data("userdata")
 
 del data["skytap_user_data"]
 del data["skytap_configuration_user_data"]
-del data["skytap_vm_user_data"]
-del data["skytap_env_user_data"]
+del data["skytap_userdata"]
+del data["skytap_metadata"]
 del data["skytap_interfaces"]
 del data["skytap_hardware"]
 del data["skytap_credentials"]
@@ -125,29 +120,33 @@ del data["skytap_local_mouse_cursor"]
 del data["skytap_desktop_resizable"]
 
 for k in data:
-    print "%s=%s" % (k, data[k])
+    try:
+        data[k].strip()
+        print "%s=%s" % (k.strip(), data[k].strip())
+    except AttributeError:
+        print "%s=%s" % (k.strip(), data[k])
 
-# Add a history of machine ids to a file. This number will change if
-# the machine ID changes - that is, if the machine was copied as a
-# template or similar.
+# Parse stuff from local_roles.txt
 
-vmid = data["skytap_vmid"]
+f = open("local_roles.txt", "r")
 
-if os.path.exists(vm_history_log):
-    with open(vm_history_log) as data_file:
-        history = json.load(data_file)
-else:
-    history = []
+lines = f.readlines()
+new_lines = []
 
-good = False
+for line in lines:
+    if "=" in line:
+        key = line.split("=")[0].replace("#", "").strip()
+        value = line.split("=")[1]
+        print key + "=" + value
 
-for vms in history:
-    if vms == vmid:
-        good = True
+        if line.strip()[0] != "#":
+            line = "# " + line.strip()
 
-if not good:
-    history.append(vmid)
+f.close()
 
-print "skytap_vm_history=" + json.dumps(history)
-
-json.dump(history, open(vm_history_log, 'w+'))
+# f = open("local_roles.txt", "w+")
+#
+# for line in lines:
+#     f.write(line)
+#
+# f.close()
