@@ -136,17 +136,19 @@ new_lines = []
 for line in lines:
     if "=" in line:
         key = line.split("=")[0].replace("#", "").strip()
-        value = line.split("=")[1]
+        value = line.split("=")[1].strip()
         print key + "=" + value
 
         if line.strip()[0] != "#":
-            line = "# " + line.strip()
+            new_lines.append("# " + line.strip())
+        else:
+            new_lines.append(line.strip())
 
 f.close()
 
-# f = open("local_roles.txt", "w+")
-#
-# for line in lines:
-#     f.write(line)
-#
-# f.close()
+f = open("local_roles.txt", "w+")
+
+for line in new_lines:
+    f.write(line + "\n")
+
+f.close()
